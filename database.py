@@ -26,27 +26,14 @@ def setup_database():
     """
     try:
         conn = get_db_connection()
-        print("Successfully connected to Turso for setup.")
-        
         conn.execute("""
             CREATE TABLE IF NOT EXISTS customers (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                first_name TEXT NOT NULL,
-                last_name TEXT NOT NULL,
-                phone TEXT,
-                email TEXT,
-                address TEXT,
-                area_city TEXT,
-                postcode TEXT,
-                piano_details TEXT,
-                last_service_date TEXT,
-                next_service_due TEXT,
-                notes TEXT
+                id INTEGER PRIMARY KEY AUTOINCREMENT, first_name TEXT NOT NULL, last_name TEXT NOT NULL,
+                phone TEXT, email TEXT, address TEXT, area_city TEXT, postcode TEXT,
+                piano_details TEXT, last_service_date TEXT, next_service_due TEXT, notes TEXT
             )
         """)
-        # --- REMOVED --- conn.commit() is not needed with this library.
         conn.close()
-        print("Database schema setup or verification complete on Turso.")
     except Exception as e:
         print(f"An error occurred during database setup: {e}")
 
@@ -54,7 +41,8 @@ def setup_database():
 def get_all_customers():
     """Fetches a list of all customers, sorted by name."""
     conn = get_db_connection()
-    customers = conn.execute("SELECT id, first_name, last_name, area_city FROM customers ORDER BY last_name, first_name").fetchall()
+    # --- CHANGE --- .fetchall() is removed. The result of execute() is already the list.
+    customers = conn.execute("SELECT id, first_name, last_name, area_city FROM customers ORDER BY last_name, first_name")
     conn.close()
     return customers
 
@@ -63,14 +51,17 @@ def get_due_customers():
     conn = get_db_connection()
     today_str = date.today().strftime("%Y-%m-%d")
     query = "SELECT id, first_name, last_name, next_service_due FROM customers WHERE next_service_due != '' AND next_service_due <= ? ORDER BY next_service_due"
-    customers = conn.execute(query, (today_str,)).fetchall()
+    # --- CHANGE --- .fetchall() is removed.
+    customers = conn.execute(query, (today_str,))
     conn.close()
     return customers
 
 def get_customer_details(customer_id):
     """Fetches all details for a single customer by their ID."""
     conn = get_db_connection()
-    customer = conn.execute("SELECT * FROM customers WHERE id = ?", (customer_id,)).fetchone()
+    # --- CHANGE --- .fetchone() is replaced with logic to get the first item from the list.
+    results = conn.execute("SELECT * FROM customers WHERE id = ?", (customer_id,))
+    customer = results[0] if len(results) > 0 else None
     conn.close()
     return customer
 
@@ -80,7 +71,8 @@ def search_customers_by_area_and_due_date(area_list):
     conn = get_db_connection()
     placeholders = ', '.join(['?'] * len(area_list))
     query = f"SELECT id, first_name, last_name, area_city, next_service_due FROM customers WHERE LOWER(area_city) IN ({placeholders}) ORDER BY next_service_due ASC"
-    customers = conn.execute(query, area_list).fetchall()
+    # --- CHANGE --- .fetchall() is removed.
+    customers = conn.execute(query, area_list)
     conn.close()
     return customers
 
@@ -98,7 +90,6 @@ def add_customer(data):
         data['area_city'], data['postcode'], data['piano_details'], data['last_service_date'],
         data['next_service_due'], data['notes']
     ))
-    # --- REMOVED --- conn.commit()
     new_id = rs.last_row_id
     conn.close()
     return new_id
@@ -118,12 +109,10 @@ def update_customer(customer_id, data):
         data['area_city'], data['postcode'], data['piano_details'], data['last_service_date'],
         data['next_service_due'], data['notes'], customer_id
     ))
-    # --- REMOVED --- conn.commit()
     conn.close()
 
 def delete_customer(customer_id):
     """Deletes a customer from the database by their ID."""
     conn = get_db_connection()
     conn.execute("DELETE FROM customers WHERE id = ?", (customer_id,))
-    # --- REMOVED --- conn.commit()
     conn.close()
